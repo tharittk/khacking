@@ -44,3 +44,16 @@ func(index);
 $ scripts/decode_stacktrace.sh vmlinux < crash.log
 ```
 will help change the memory addres (hex) to file:function:lineno
+
+# KASan
+- No false positive
+- Out-of-Bounds, Use-after-free: usually nothing happens. You just corrupt some memory
+- KASan = BOOM the program when these happen
+- mechanism: shadow memory (every 8 align bytes (64bit) has + 1 shadow byte)
+- shadow byte encodes how many bad memory bytes [good good ... good5 bad bad] <- shadow = [2]
+- if all bad, shadow shows -1
+- [physical memory] [vmalloc] [KASAN shadow] [...] [.text]
+- There is a mapping from kernel address to shadow byte: Shadow = KAddr/8 + offset (simple)
+- Red-zone around heap object [heap obj shadow heap obj shadow ...]. If kernel tries to access the shadow (redzone), errors
+- Quarantine for heap objects: kfree() [ ] kmalloc() -> Quarantine = delay reuse (mark this address as bad-to-use for a while)
+- compiler instrumentation: shadow = ...; if (*shadow) throw error; // expect shadow to be zero
